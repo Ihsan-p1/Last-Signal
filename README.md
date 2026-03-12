@@ -1,4 +1,4 @@
-# EchoLife -- Dead Man's Switch Discord Bot
+# Last-Signal -- Dead Man's Switch Discord Bot
 
 A Discord bot that acts as a dead man's switch. it periodically checks whether the owner has confirmed they are active. If no check-in is received within a set deadline, the bot automatically alerts a list of emergency contacts via direct message.
 
@@ -48,14 +48,14 @@ Default values are set in `bot.py` and can be adjusted:
 
 1. Clone the repository:
 
-```
-git clone https://github.com/<your-username>/EchoLife.git
-cd EchoLife
+```bash
+git clone https://github.com/Ihsan-p1/Last-Signal.git
+cd Last-Signal
 ```
 
 2. Create a virtual environment and install dependencies:
 
-```
+```bash
 python -m venv .venv
 .venv\Scripts\activate
 pip install discord.py python-dotenv
@@ -73,7 +73,7 @@ DISCORD_TOKEN=your_bot_token_here
 
 4. Run the bot:
 
-```
+```bash
 python deadman_Bot/bot.py
 ```
 
@@ -82,7 +82,7 @@ python deadman_Bot/bot.py
 ## Project Structure
 
 ```
-EchoLife/
+Last-Signal/
   .env                  # Discord bot token (do not commit)
   deadman_Bot/
     bot.py              # Main bot logic
@@ -107,5 +107,3 @@ All persistent data is stored in `data.json`:
 - Add `.env` to your `.gitignore` to avoid leaking your bot token.
 - The bot requires the **Message Content** privileged intent enabled in the Discord Developer Portal.
 - `data.json` is read and written at runtime. Back it up if needed.
-
----
