@@ -61,8 +61,12 @@ python -m venv .venv
 pip install discord.py python-dotenv
 ```
 
-3. Create a `.env` file in the project root:
+3. Create a `.env` file in the project root (you can copy `.env.example` as a template):
 
+```bash
+cp .env.example .env
+```
+Then, edit `.env` and paste your token:
 ```
 DISCORD_TOKEN=your_bot_token_here
 ```
