@@ -1,0 +1,11 @@
+{
+  "Him_id": 0,
+  "last_checkin": null,
+  "contacts": [],
+  "channels": [],
+  "reminders_sent": {
+    "10": false,
+    "12": false,
+    "13": false
+  }
+}

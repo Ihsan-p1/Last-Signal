@@ -13,7 +13,7 @@ CHECK_INTERVAL_HOURS = 6
 DEADLINE_DAYS = 14
 REMINDER_DAYS = [10, 12, 13]
 
-DATA_FILE = os.path.join(os.path.dirname(__file__), "data.json")\
+DATA_FILE = os.path.join(os.path.dirname(__file__), "data.json")
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -23,7 +23,12 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 def load_data():
     with open(DATA_FILE, "r") as f:
-        return json.load(f)
+        data = json.load(f)
+
+    if "channels" not in data:
+        data["channels"] = []
+
+    return data
 
 
 def save_data(data):
@@ -49,6 +54,7 @@ async def on_ready():
 
 @bot.command()
 async def alive(ctx):
+
     data = load_data()
 
     if data["Him_id"] == 0:
@@ -69,7 +75,7 @@ async def alive(ctx):
 
 
 @bot.command()
-async def addcontact(ctx, user: discord.User):
+async def addcontact(ctx, user_id: int):
 
     data = load_data()
 
@@ -77,13 +83,31 @@ async def addcontact(ctx, user: discord.User):
         await ctx.send("Only Him can add contacts.")
         return
 
-    if user.id not in data["contacts"]:
-        data["contacts"].append(user.id)
+    if user_id not in data["contacts"]:
+        data["contacts"].append(user_id)
         save_data(data)
 
-        await ctx.send(f"Added {user.name} as list contact")
+        await ctx.send(f"Added user ID {user_id} as emergency contact.")
     else:
         await ctx.send("User already in contact list.")
+
+
+@bot.command()
+async def addchannel(ctx, channel_id: int):
+
+    data = load_data()
+
+    if ctx.author.id != data["Him_id"]:
+        await ctx.send("Only Him can add channels.")
+        return
+
+    if channel_id not in data["channels"]:
+        data["channels"].append(channel_id)
+        save_data(data)
+
+        await ctx.send(f"Channel {channel_id} added.")
+    else:
+        await ctx.send("Channel already registered.")
 
 
 @bot.command()
@@ -123,6 +147,74 @@ Last Check-in: {days} days ago
 Deadline: {DEADLINE_DAYS} days
 Remaining: {remaining} days
 Contacts: {len(data["contacts"])}
+Channels: {len(data["channels"])}
+"""
+    )
+
+
+@bot.command()
+async def testalert(ctx):
+
+    data = load_data()
+
+    if ctx.author.id != data["Him_id"]:
+        await ctx.send("Only Him can run this test.")
+        return
+
+    success_dm = 0
+    failed_dm = 0
+    success_channel = 0
+
+    # TEST DM
+    for uid in data["contacts"]:
+
+        try:
+            user = await bot.fetch_user(uid)
+
+            await user.send(
+                "⚠️ TEST ALERT ⚠️\n\n"
+                "Last Signal system test message.\n"
+                "Emergency notifications are working."
+            )
+
+            success_dm += 1
+
+        except discord.Forbidden:
+            failed_dm += 1
+
+        except Exception as e:
+            print(e)
+            failed_dm += 1
+
+    # TEST CHANNEL
+    for cid in data["channels"]:
+
+        try:
+            channel = await bot.fetch_channel(cid)
+
+            await channel.send(
+                "⚠️ TEST ALERT ⚠️\n"
+                "Last Signal system test successful."
+            )
+
+            success_channel += 1
+
+        except discord.Forbidden:
+            print(f"No permission in channel {cid}")
+
+        except discord.NotFound:
+            print(f"Channel not found: {cid}")
+
+        except Exception as e:
+            print(e)
+
+    await ctx.send(
+        f"""
+Test Finished
+
+DM Delivered: {success_dm}
+DM Failed: {failed_dm}
+Server Messages Sent: {success_channel}
 """
     )
 
@@ -136,6 +228,8 @@ async def check_status():
         return
 
     days = get_days_since(data["last_checkin"])
+
+    # REMINDER
     Him = await bot.fetch_user(data["Him_id"])
 
     for r in REMINDER_DAYS:
@@ -147,27 +241,50 @@ async def check_status():
                     f"Reminder: You haven't checked in for {r} days.\n"
                     f"Use !alive to reset timer."
                 )
+
             except:
                 pass
 
             data["reminders_sent"][str(r)] = True
             save_data(data)
 
+    # EMERGENCY ALERT
     if days >= DEADLINE_DAYS:
 
+        # DM CONTACTS
         for uid in data["contacts"]:
 
             try:
                 user = await bot.fetch_user(uid)
 
                 await user.send(
-                    "⚠️ ALERT\n\n"
-                    "User hasn't checked in for 14 days.\n"
-                    "Please check on them."
+                    "⚠️ Last Signal ALERT\n\n"
+                    "User hasn't checked in for 14 days."
                 )
 
             except:
                 pass
+
+        # SERVER CHANNELS
+        for cid in data["channels"]:
+
+            try:
+                channel = await bot.fetch_channel(cid)
+
+                await channel.send(
+                    "⚠️ **Last Signal ALERT**\n\n"
+                    "User hasn't checked in for 14 days.\n"
+                    "Please check on them."
+                )
+
+            except discord.Forbidden:
+                print(f"No permission in channel {cid}")
+
+            except discord.NotFound:
+                print(f"Channel not found: {cid}")
+
+            except Exception as e:
+                print(e)
 
 
 bot.run(TOKEN)
