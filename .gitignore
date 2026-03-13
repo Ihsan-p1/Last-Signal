@@ -1,7 +1,7 @@
 # Environment
 .env
 
-data.json
+deadman_Bot/data.json
 # Python
 .venv/
 __pycache__/s

@@ -28,6 +28,9 @@ def load_data():
     if "channels" not in data:
         data["channels"] = []
 
+    if "alert_role_id" not in data:
+        data["alert_role_id"] = None
+
     return data
 
 
@@ -44,6 +47,31 @@ def get_days_since(last_checkin):
     now = datetime.datetime.utcnow()
 
     return (now - last).days
+
+
+def create_alert_embed(last_checkin):
+
+    embed = discord.Embed(
+        title="🚨 Last Signal Emergency Alert",
+        description="User inactivity detected.",
+        color=discord.Color.red()
+    )
+
+    embed.add_field(
+        name="Last Check-in",
+        value=str(last_checkin),
+        inline=False
+    )
+
+    embed.add_field(
+        name="Status",
+        value="No activity detected for 14 days",
+        inline=False
+    )
+
+    embed.set_footer(text="Last Signal Monitoring System")
+
+    return embed
 
 
 @bot.event
@@ -111,6 +139,38 @@ async def addchannel(ctx, channel_id: int):
 
 
 @bot.command()
+async def listchannels(ctx):
+
+    data = load_data()
+
+    if not data["channels"]:
+        await ctx.send("No channels registered.")
+        return
+
+    text = "Registered alert channels:\n"
+
+    for cid in data["channels"]:
+        text += f"- {cid}\n"
+
+    await ctx.send(text)
+
+
+@bot.command()
+async def setrole(ctx, role_id: int):
+
+    data = load_data()
+
+    if ctx.author.id != data["Him_id"]:
+        await ctx.send("Only Him can set alert role.")
+        return
+
+    data["alert_role_id"] = role_id
+    save_data(data)
+
+    await ctx.send(f"Alert role set to {role_id}")
+
+
+@bot.command()
 async def removecontact(ctx, user: discord.User):
 
     data = load_data()
@@ -153,6 +213,38 @@ Channels: {len(data["channels"])}
 
 
 @bot.command()
+async def panic(ctx):
+
+    data = load_data()
+
+    if ctx.author.id != data["Him_id"]:
+        await ctx.send("Only Him can trigger panic alert.")
+        return
+
+    embed = create_alert_embed(data["last_checkin"])
+
+    success = 0
+
+    for cid in data["channels"]:
+
+        try:
+            channel = await bot.fetch_channel(cid)
+
+            role_ping = ""
+            if data["alert_role_id"]:
+                role_ping = f"<@&{data['alert_role_id']}> "
+
+            await channel.send(role_ping, embed=embed)
+
+            success += 1
+
+        except Exception as e:
+            print(e)
+
+    await ctx.send(f"🚨 Panic alert sent to {success} channels.")
+
+
+@bot.command()
 async def testalert(ctx):
 
     data = load_data()
@@ -165,7 +257,6 @@ async def testalert(ctx):
     failed_dm = 0
     success_channel = 0
 
-    # TEST DM
     for uid in data["contacts"]:
 
         try:
@@ -186,7 +277,6 @@ async def testalert(ctx):
             print(e)
             failed_dm += 1
 
-    # TEST CHANNEL
     for cid in data["channels"]:
 
         try:
@@ -229,7 +319,6 @@ async def check_status():
 
     days = get_days_since(data["last_checkin"])
 
-    # REMINDER
     Him = await bot.fetch_user(data["Him_id"])
 
     for r in REMINDER_DAYS:
@@ -248,10 +337,10 @@ async def check_status():
             data["reminders_sent"][str(r)] = True
             save_data(data)
 
-    # EMERGENCY ALERT
     if days >= DEADLINE_DAYS:
 
-        # DM CONTACTS
+        embed = create_alert_embed(data["last_checkin"])
+
         for uid in data["contacts"]:
 
             try:
@@ -265,17 +354,16 @@ async def check_status():
             except:
                 pass
 
-        # SERVER CHANNELS
         for cid in data["channels"]:
 
             try:
                 channel = await bot.fetch_channel(cid)
 
-                await channel.send(
-                    "⚠️ **Last Signal ALERT**\n\n"
-                    "User hasn't checked in for 14 days.\n"
-                    "Please check on them."
-                )
+                role_ping = ""
+                if data["alert_role_id"]:
+                    role_ping = f"<@&{data['alert_role_id']}> "
+
+                await channel.send(role_ping, embed=embed)
 
             except discord.Forbidden:
                 print(f"No permission in channel {cid}")
